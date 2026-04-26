@@ -19,7 +19,7 @@ if not os.path.exists("model.pkl"):
             from sklearn.preprocessing import LabelEncoder
             import pickle
 
-            DATA_URL = "https://raw.githubusercontent.com/dsrscientist/IPL-dataset/master/matches.csv"
+            DATA_URL = "https://raw.githubusercontent.com/manasdas19/IPL-Match-Data/master/matches.csv"
             urllib.request.urlretrieve(DATA_URL, "matches.csv")
 
             df = pd.read_csv("matches.csv")
