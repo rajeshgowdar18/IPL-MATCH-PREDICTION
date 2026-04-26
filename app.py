@@ -8,12 +8,50 @@ st.title("🏏 IPL Match Outcome Predictor")
 st.markdown("Fill in the match details below to predict the winner.")
 
 # Auto-train on cloud if model missing
+# Auto-train on cloud if model missing
 if not os.path.exists("model.pkl"):
     with st.spinner("Setting up model for first time... this takes ~30 seconds."):
-        import subprocess
-        result = subprocess.run(["python", "train_model.py"], capture_output=True, text=True)
-        if result.returncode != 0:
-            st.error(f"Training failed:\n{result.stderr}")
+        try:
+            import urllib.request
+            import pandas as pd
+            from sklearn.model_selection import train_test_split
+            from sklearn.linear_model import LogisticRegression
+            from sklearn.preprocessing import LabelEncoder
+            import pickle
+
+            DATA_URL = "https://raw.githubusercontent.com/dsrscientist/IPL-dataset/master/matches.csv"
+            urllib.request.urlretrieve(DATA_URL, "matches.csv")
+
+            df = pd.read_csv("matches.csv")
+            df = df[df['winner'].notna()]
+            df = df[df['result'] != 'tie']
+
+            df['toss_bat'] = (df['toss_decision'] == 'bat').astype(int)
+            df['team1_won_toss'] = (df['toss_winner'] == df['team1']).astype(int)
+            df['team1_won'] = (df['winner'] == df['team1']).astype(int)
+
+            le_team = LabelEncoder()
+            le_venue = LabelEncoder()
+            le_team.fit(pd.concat([df['team1'], df['team2']]))
+            le_venue.fit(df['venue'])
+
+            df['team1_enc'] = le_team.transform(df['team1'])
+            df['team2_enc'] = le_team.transform(df['team2'])
+            df['venue_enc'] = le_venue.transform(df['venue'])
+
+            X = df[['team1_enc', 'team2_enc', 'venue_enc', 'toss_bat', 'team1_won_toss']]
+            y = df['team1_won']
+
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            model = LogisticRegression(max_iter=1000)
+            model.fit(X_train, y_train)
+
+            with open("model.pkl", "wb") as f:
+                pickle.dump({"model": model, "le_team": le_team, "le_venue": le_venue}, f)
+
+        except Exception as e:
+            st.error(f"Training failed: {e}")
             st.stop()
 
 try:
